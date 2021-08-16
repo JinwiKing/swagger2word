@@ -15,7 +15,11 @@ import org.word.model.Table;
 import org.word.service.WordService;
 import org.word.utils.JsonUtils;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -41,12 +45,42 @@ public class WordServiceImpl implements WordService {
     @Override
     public Map<String, Object> tableList(String swaggerUrl) {
         Map<String, Object> resultMap = new HashMap<>();
+        URL url = null;
+        URLConnection connection = null;
+        InputStream inputStream = null;
+        ByteArrayOutputStream baos = null;
         try {
-            String jsonStr = restTemplate.getForObject(swaggerUrl, String.class);
+            url = new URL(swaggerUrl);
+            connection = url.openConnection();
+            inputStream = connection.getInputStream();
+            baos = new ByteArrayOutputStream();
+            byte[] buffer = new byte[8196];
+            int reads = inputStream.read(buffer);
+            while(reads >= 0){
+                baos.write(buffer, 0, reads);
+                reads = inputStream.read(buffer);
+            }
+            String jsonStr = new String(baos.toByteArray());
+//            String jsonStr = restTemplate.getForObject(swaggerUrl, String.class);
             resultMap = tableListFromString(jsonStr);
             log.debug(JsonUtils.writeJsonStr(resultMap));
         } catch (Exception e) {
             log.error("parse error", e);
+        } finally {
+            if (baos != null) {
+                try {
+                    baos.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            if (inputStream != null) {
+                try {
+                    inputStream.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
         }
         return resultMap;
     }
